@@ -83,36 +83,6 @@
         };
     });
 
-    // This is a form widget for editing/creating a single TODO.
-
-    app.defineModule("todoForm", function (lib, container) {
-        var form = $("<form style='display:none'>")
-            .append("<input type='text'>")
-            .append("<input type='submit'>")
-            .submit(function (ev) {
-                ev.preventDefault();
-                var data = $(this).find("input[type=text]").val();
-                data = lib.strip(data);
-                if (data)
-                    lib.save(data);
-                else
-                    // TODO: better validation error messages ;)
-                    alert("Validation error!");
-            })
-            .appendTo(container);
-
-        return {
-            start: function (opts) {
-                form.find("input[type=text]").val(opts.initialVal || "");
-                form.find("input[type=submit]").val(opts.label || "Submit");
-                form.show();
-            },
-            stop: function () {
-                form.hide();
-            }
-        };
-    });
-
     // ### Routes
 
     // Routes represent higher level states of the application and communication
@@ -152,19 +122,23 @@
 
     app.defineRoute("^#/new/$", (function () {
 
-        var form = app.modules.todoForm({
-            strip : strip,
-            save  : function (todo) {
-                app.publish("new todo", todo);
+        var form = app.modules.form({
+            fields: [
+                [app.modules.textInput, { name: "todo" }],
+                [app.modules.button, {
+                    name: "add",
+                    label: "Add new TODO"
+                }]
+            ],
+            onSubmit: function (data) {
+                app.publish("new todo", data.todo);
                 app.redirect("#/");
             }
         }, $("<div>").appendTo(document.body));
 
         return {
             enter: function () {
-                form.start({
-                    label: "Add New TODO"
-                });
+                form.start();
             },
             exit: function () {
                 form.stop();
@@ -178,10 +152,16 @@
     app.defineRoute("^#/edit/(\\d+)/$", (function () {
 
         var oldTodo,
-        form = app.modules.todoForm({
-            strip : strip,
-            save  : function (newTodo) {
-                app.publish("change todo", oldTodo, newTodo);
+        form = app.modules.form({
+            fields: [
+                [app.modules.textInput, { name: "todo" }],
+                [app.modules.button, {
+                    name: "add",
+                    label: "Update TODO"
+                }]
+            ],
+            onSubmit: function (data) {
+                app.publish("change todo", oldTodo, data.todo);
                 app.redirect("#/");
             }
         }, $("<div>").appendTo(document.body));
@@ -190,8 +170,7 @@
             enter: function (path, index) {
                 oldTodo = index;
                 form.start({
-                    initialVal: todos.at(index),
-                    label: "Save TODO"
+                    todo: todos.at(index)
                 });
             },
             exit: function () {
