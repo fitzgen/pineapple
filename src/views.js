@@ -1,17 +1,17 @@
-// ### Modules
+// ### Views
 
 (function () {
 
     // Implementation
 
-    app.modules = {};
+    app.views = {};
 
-    app.defineModule = function (name, constructor) {
-        app.modules[name] = constructor;
+    app.defineView = function (name, constructor) {
+        app.views[name] = constructor;
         return this;
     };
 
-    // Builtin Modules
+    // Builtin Views
 
     function labelify(name) {
         return name.replace(/[-_]/g, " ")
@@ -30,7 +30,7 @@
     // TODO: event handlers
     // required: lib.name
     // Optional: lib.label
-    app.defineModule("textInput", function (lib, container) {
+    app.defineView("textInput", function (lib, container) {
 
         var input = $("<input type='text' />"),
         name = genName(lib.name);
@@ -60,7 +60,7 @@
     // TODO: event handlers
     // Required: lib.name
     // Optional: lib.label
-    app.defineModule("button", function (lib, container) {
+    app.defineView("button", function (lib, container) {
 
         var input = $("<input type='submit' style='display:none' />")
             .attr("name", genName(lib.name))
@@ -84,11 +84,11 @@
     //
     // Example:
     //
-    //     var form = app.modules.form({
+    //     var form = app.views.form({
     //         fields: [
-    //             [app.modules.textInput, { name: "username" }],
-    //             [app.modules.passwordInput, { name: "password" }],
-    //             [app.modules.button, {
+    //             [app.views.textInput, { name: "username" }],
+    //             [app.views.passwordInput, { name: "password" }],
+    //             [app.views.button, {
     //                  name: "login",
     //                  onClick: function () { alert("hey"); }
     //              }]
@@ -97,7 +97,7 @@
     //             ...
     //         }
     //     }, container);
-    app.defineModule("form", function (lib, container) {
+    app.defineView("form", function (lib, container) {
         var ul = $("<ul>"),
         i = 0,
         fields = {},
