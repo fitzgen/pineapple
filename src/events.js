@@ -20,7 +20,7 @@ var eventEmitter = {
         case 2:
             this._eventHandlers = this._eventHandlers        || {};
             handlers            = this._eventHandlers[event] || [];
-            for (i = 0, len = handlers.length; i++) {
+            for (i = 0, len = handlers.length; i < len; i++) {
                 if (handlers[i] === callback) {
                     handlers.splice(i, 1);
                     break;
@@ -30,10 +30,10 @@ var eventEmitter = {
         default:
             throw new Error("Too many arguments to `unbind`: " + arguments.length);
         }
-    }
+    },
     trigger: function (event) {
         if ( ! this._eventHandlers[event] )
-            return;
+            return this;
         var args = slice(arugments, 1),
             self = this;
         for ( var i = 0, len = this._eventHandlers[event].length; i < len; i++ )
