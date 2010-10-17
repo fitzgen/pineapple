@@ -1,0 +1,38 @@
+<html>
+    <head>
+      <link rel="stylesheet" type="text/css" href="qunit.css" />
+    </head>
+    <body>
+        <script type="text/javascript">
+          window.console = window.console || {
+            log: function () {},
+            profile: function () {},
+            profileEnd: function () {}
+          };
+        </script>
+        <script type="text/javascript" src="qunit.js"></script>
+        <script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.4.3/jquery.js"></script>
+        <script type="text/javascript" src="../dist/pineapple.js"></script>
+        <script type="text/javascript">
+          function the (thing, fn) {
+            module(thing);
+            fn();
+          }
+          var should = test;
+          var app = new pineapple;
+        </script>
+        <script type="text/javascript" src="pubsub.js"></script>
+        <script type="text/javascript" src="routes.js"></script>
+        <script type="text/javascript" src="views.js"></script>
+        <script type="text/javascript" src="models.js"></script>
+
+        <ul id="test" style="display:none">
+        </ul>
+
+        <h1 id="qunit-header">Pineapple</h1>
+        <h2 id="qunit-banner"></h2>
+        <h2 id="qunit-userAgent"></h2>
+        <ol id="qunit-tests"></ol>
+
+    </body>
+</html>
