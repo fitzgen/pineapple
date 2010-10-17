@@ -1,5 +1,12 @@
+// Stuff to fire on document.ready
+var onReadys = [];
+app.ready = function (fn) {
+    onReadys.push(fn);
+    return this;
+};
+
 $(document).ready(function () {
-    app.publish("ready");
+    for ( ; onReadys.length > 0; onReadys.pop()() ) ;
 });
 
 // Delete global references to jQuery so people can't cheat their way out of the
