@@ -20,6 +20,19 @@ window["pineapple"] = function () {
                 target[k] = props[k];
     }
 
+    function bindSelf (obj) {
+        // Bind `this` as first argument to all methods, I hate it when I have
+        // to `var that = this` because of object literals. No more!
+        var oldMethod;
+        for (var k in obj)
+            if (obj.hasOwnProperty(k) && typeof obj[k] === "function") {
+                oldMethod = obj[k];
+                obj[k] = function () {
+                    return oldMethod.apply(this, [this].concat(slice(arguments)));
+                }
+            }
+    }
+
     // Borrowed from Backbone.js, Copyright Jeremy Ashkenas and Document Cloud,
     // MIT licensed.
     function inherits (parent, protoProps, ctorProps) {
