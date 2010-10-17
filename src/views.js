@@ -2,142 +2,136 @@
 
 (function () {
 
-    // Implementation
-
     app.views = {};
 
-    app.defineView = function (name, constructor) {
-        app.views[name] = constructor;
-        return this;
+    var $ = window.$;
+    function localJQuery (selector, context) {
+        return arguments.length === 1
+            ? $(selector, this.el)
+            : $(this.el).find(context).find(selector);
+    }
+
+    var BaseView = app.views.BaseView = function (opts) {
+        opts = opts || {};
+        this.el = typeof opts.el === "undefined"
+            ? document.createElement(this.defaultElement)
+            : opts.el instanceof HTMLElement
+                ? opts.el
+                : opts.el instanceof $
+                    ? opts.el[0]
+                    : document.createElement(opts.el);
+
+        var parent = opts.parent || document.body;
+        $(this.el).hide().appendTo(parent);
+
+        this.initialize();
     };
+    BaseView.prototype = {
+        constructor: BaseView,
+        defaultElement: "div",
 
-    // Builtin Views
+        // Create elements, set up properties shared by the other methods
+        initialize: function () {},
 
-    function labelify(name) {
-        return name.replace(/[-_]/g, " ")
-            .replace(/([a-z])([A-Z])/g, "$1 $2")
-            .replace(/\b([a-z])/, function (m, p1) {
-                return p1.toUpperCase();
-            })
-            + ":";
-    }
+        // Show elements, enable form inputs, bind event handlers, etc.
+        activate: function () {
+            this.delegate();
+            $(this.el).show();
+            return this;
+        },
 
-    var counter = 0;
-    function genName (name) {
-        return name + counter++;
-    }
+        delegate: function () {
+            var self = this;
 
-    // TODO: event handlers
-    // required: lib.name
-    // Optional: lib.label
-    app.defineView("textInput", function (lib, container) {
+            for (var key in this.events) if (this.events.hasOwnProperty(key)) (function (key) {
+                var event, selector, val, idx;
 
-        var input = $("<input type='text' />"),
-        name = genName(lib.name);
-        input.attr("name", name);
+                // Parse the event and selector out of the key.
+                key = $.trim(key).replace(/ +/g, " ");
+                idx = key.indexOf(" ");
+                if (idx > -1) {
+                    event = key.slice(0, idx);
+                    selector = key.slice(idx + 1);
+                } else {
+                    event = key;
+                    selector = false;
+                }
 
-        var label = $("<label style='display:none'>")
-            .attr("for", name)
-            .text(lib.label || labelify(lib.name))
-            .append(input)
-            .appendTo(container);
+                // If the user passed in a function, delegate events directly to
+                // that function. If they passed in a string, trigger that event
+                // on this view. If they didn't pass a selector, bind instead of
+                // delegate.
+                var handler = function (event) {
+                    var val;
+                    try {
+                        val = self.valueOf();
+                    } catch (err) {
+                        val = err;
+                    }
+                    event.preventDefault();
+                    if (typeof self.events[key] === "function")
+                        self.events[key].call(self, event, val);
+                    else
+                        self.trigger(self.events[key], event, val);
+                };
 
-        return {
-            start: function (initialVal) {
-                initialVal && input.val(initialVal);
-                label.show();
-            },
-            stop: function () {
-                label.hide();
-                input.val("");
-            },
-            valueOf: function () {
-                return input.val();
-            }
-        };
-    });
+                if (selector) {
+                    $(self.el)
+                        .undelegate(selector, event)
+                        .delegate(selector, event, handler);
+                } else {
+                    $(self.el)
+                        .unbind(event)
+                        .bind(event, handler);
+                }
+            }(key));
 
-    // TODO: event handlers
-    // Required: lib.name
-    // Optional: lib.label
-    app.defineView("button", function (lib, container) {
+            return this;
+        },
 
-        var input = $("<input type='submit' style='display:none' />")
-            .attr("name", genName(lib.name))
-            .attr("value", lib.label || labelify(lib.name))
-            .appendTo(container);
+        // Hide elements, disable form inputs, unbind event handlers, etc.
+        deactivate: function () {
+            $(this.el).hide();
+            return this;
+        },
 
-        return {
-            start: function () {
-                input.show();
-            },
-            stop: function () {
-                input.hide();
-            },
-            valueOf: function () {
-                return input.val();
-            }
-        };
-    });
+        // Gets called when this view is at the end of it's life cycle.
+        destroy: function () {
+            this.$(this.el).empty().undelegate();
+            return this;
+        },
 
-    // TODO: Refactor this to suport lists, divs, ps, tables, etc... Validation.
-    //
-    // Example:
-    //
-    //     var form = app.views.form({
-    //         fields: [
-    //             [app.views.textInput, { name: "username" }],
-    //             [app.views.passwordInput, { name: "password" }],
-    //             [app.views.button, {
-    //                  name: "login",
-    //                  onClick: function () { alert("hey"); }
-    //              }]
-    //         ],
-    //         onSubmit: function () {
-    //             ...
-    //         }
-    //     }, container);
-    app.defineView("form", function (lib, container) {
-        var ul = $("<ul>"),
-        i = 0,
-        fields = {},
-        form = $("<form style='display:none'>").appendTo(container);
+        // Return the value of this view. Useful for form inputs and widgets,
+        // etc. Do validation here and throw errors as needed.
+        valueOf: function () {}
+    };
+    BaseView.prototype.$ = BaseView.prototype.jQuery = localJQuery;
+    mixin(BaseView.prototype, eventEmitter);
 
-        ul.appendTo(form);
-
-        for ( ; i < lib.fields.length; i++)
-            fields[lib.fields[i][1].name] = lib.fields[i][0](lib.fields[i][1],
-                                                             $("<li>").appendTo(ul));
-
-        function getData() {
-            var data = {};
-            for (var k in fields) if (fields.hasOwnProperty(k))
-                data[k] = fields[k].valueOf();
-            return data;
+    app.defineView = function (name, parent, protoProps, ctorProps) {
+        // Handle argument matching manually if name or parent is not passed.
+        if (typeof name !== "string") {
+            ctorProps = protoProps;
+            protoProps = parent;
+            parent = name;
+        }
+        if (typeof parent !== "function") {
+            ctorProps = protoProps;
+            protoProps = parent;
+            parent = app.views.BaseView;
         }
 
-        return {
-            start: function (initial) {
-                initial = initial || {};
+        protoProps = protoProps || {};
+        ctorProps  = ctorProps  || {};
 
-                form.bind("submit", function (e) {
-                    e.preventDefault();
-                    lib.onSubmit(getData());
-                });
+        bindSelf(protoProps);
 
-                for (var k in fields) if (fields.hasOwnProperty(k))
-                    fields[k].start(initial[k]);
+        this.events = protoProps.events || {};
+        bindSelf(this.events);
 
-                form.show();
-            },
-            stop: function () {
-                form.hide();
-                for (var k in fields) if (fields.hasOwnProperty(k))
-                    fields[k].stop();
-                form.unbind("submit");
-            },
-            valueOf: getData
-        };
-    });
+        var view = inherits(parent, protoProps, ctorProps);
+        if (name) app.views[name] = view;
+        return view;
+    };
 
 }());
