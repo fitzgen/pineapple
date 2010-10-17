@@ -34,12 +34,14 @@ var eventEmitter = {
     trigger: function (event) {
         if ( ! this._eventHandlers[event] )
             return this;
-        var args = slice(arugments, 1),
+        var args = slice(arguments, 1),
             self = this;
         for ( var i = 0, len = this._eventHandlers[event].length; i < len; i++ )
-            async(function () {
-                self._eventHandlers[event][i].apply({}, args);
-            });
+            (function  (handler) {
+                async(function () {
+                    handler.apply({}, args);
+                });
+            }(this._eventHandlers[event][i]));
         return this;
     }
 };
