@@ -33,13 +33,12 @@
 
     routeEmitter.bind("hashchange", function (hash) {
         var reString, matches;
-
         currentRoute && currentRoute.exit && currentRoute.exit();
 
         for (reString in routes) if (routes.hasOwnProperty(reString)) {
             var matches = hash.match(new RegExp(reString));
             if (matches) {
-                routes[reString].enter && routes[reString].enter.apply(window.location.hash,
+                routes[reString].enter && routes[reString].enter.apply(hash,
                                                                        matches);
                 currentRoute = routes[reString];
                 return;
@@ -54,7 +53,7 @@
     // TODO: Cross browser back button history.
     if ("onhashchange" in window)
         window.addEventListener("hashchange", function () {
-            app.publish("hashchange", window.location.hash);
+            routeEmitter.trigger("hashchange", window.location.hash);
         }, false);
     else
         (function () {
