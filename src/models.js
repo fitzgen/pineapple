@@ -7,23 +7,27 @@
         this.attributes = {};
         var self = this;
 
-        // Create the accessors. Use self-invoking function so that all the
-        // accessors don't close over the same `key` variable.
-        for (var k in attrs) if (attrs.hasOwnProperty(k)) (function (key) {
-            self.attributes[key] = attrs[key];
-            self[key] = function (val, opts) {
-                if (arguments.length === 0)
-                    return this.attributes[key];
-                this.attributes[key] = val;
-                return this;
-            };
-        }(k));
+        // Create the accessors for all the attrs on initialization.
+        for (var k in attrs) if (attrs.hasOwnProperty(k))
+            this.newAccessor(k, attrs[k]);
 
-        this.initialize && this.initialize(this);
+        this.initialize(attrs);
     };
     BaseModel.prototype = {
         constructor: BaseModel,
-        initialize: function () {}
+        initialize: function () {},
+        // Create an automatic get/set accessor for the given attribut name,
+        // optionally initializing the attribute to val.
+        newAccessor: function (name, val) {
+            this.attributes[name] = val;
+            this[name] = function (val, opts) {
+                if (arguments.length === 0)
+                    return this.attributes[name];
+                this.attributes[name] = val;
+                return this;
+            };
+            return this;
+        }
     };
 
     app.defineModel = function (name, parent, protoProps, ctorProps) {
