@@ -14,17 +14,19 @@
     var BaseView = app.views.BaseView = function (opts) {
         opts = opts || {};
         this.el = typeof opts.el === "undefined"
-            ? document.createElement(this.defaultElement)
+            ? document.createElement(this.el || this.defaultElement)
             : opts.el instanceof HTMLElement
                 ? opts.el
                 : opts.el instanceof $
                     ? opts.el[0]
                     : document.createElement(opts.el);
-
-        var parent = opts.parent || document.body;
-        $(this.el).hide().appendTo(parent);
-
-        this.initialize();
+        this.$(this.el).hide();
+        this.parent = typeof opts.parent === "undefined"
+            ? document.body
+            : opts.parent instanceof BaseView
+                ? opts.parent.el
+                : opts.parent;
+        this.initialize(opts);
     };
     BaseView.prototype = {
         constructor: BaseView,
@@ -36,7 +38,7 @@
         // Show elements, enable form inputs, bind event handlers, etc.
         activate: function () {
             this.delegate();
-            $(this.el).show();
+            $(this.el).show().appendTo(this.parent);
             return this;
         },
 
