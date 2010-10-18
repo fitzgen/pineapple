@@ -6,7 +6,8 @@ app.ready = function (fn) {
 };
 
 $(document).ready(function () {
-    for ( ; onReadys.length > 0; onReadys.pop()() ) ;
+    while (onReadys.length > 0)
+        onReadys.pop()();
 });
 
 // Delete global references to jQuery so people can't cheat their way out of the
