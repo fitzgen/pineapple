@@ -5,191 +5,199 @@
 
     // ### Data Layer
 
-    var todos = (function () {
-        var store = [];
-
-        // If we have access to localStorage, load the todos from it and begin
-        // saving them back every half second.
-        if (window.localStorage) {
-
-            if (window.localStorage.pineappleTodos) {
-                store = JSON.parse(window.localStorage.pineappleTodos);
-                for (var i = 0; i < store.length; i++)
-                    app.publish("render new todo", store[i]);
+    var todoIdCounter = 0;
+    var Todo = app.defineModel("Todo", {
+        initialize: function (self, opts) {
+            function assertHasAttr (attr) {
+                attr in self.attributes || (function () {
+                    throw new Error("The '" + attr + "' is required for Todo.");
+                }());
             }
-
-            setInterval(function () {
-                window.localStorage.pineappleTodos = JSON.stringify(store);
-            }, 500);
-
+            assertHasAttr("title");
+            assertHasAttr("content");
+            assertHasAttr("priority");
+            self.newAccessor("id", todoIdCounter++)
         }
-
-        app.subscribe("new todo", function (todo) {
-            store.push(todo);
-            app.publish("render new todo", todo);
-        });
-
-        app.subscribe("change todo", function (i, newTodo) {
-            store[i] = newTodo;
-        });
-
-        app.subscribe("delete todo", function (todo) {
-            store.splice(store.indexOf(todo), 1);
-        });
-
-        return {
-            at: function (i) {
-                return store[i];
-            }
-        };
-    }());
-
-    // ### Custom UI Modules
-
-    // This handles rendering and interaction with the list of TODOs.
-
-    app.defineModule("todoList", function (lib, container) {
-        $("<a href='#/new/'>Add a TODO</a>").appendTo(container);
-        var ul = $("<ul style='display:none'>").appendTo(container);
-
-        lib.onNewTodo(function (todo) {
-            ul.append(renderTodo(todo));
-        });
-
-        lib.onChangeTodo(function (i, newTodo) {
-            ul.find("li").eq(i).replaceWith(renderTodo(newTodo));
-        });
-
-        ul.delegate("input[type=checkbox]", "change", function () {
-            lib.deleteTodo($(this).parent().remove().text());
-        });
-
-        ul.delegate("a", "click", function (ev) {
-            ev.preventDefault();
-            lib.edit( ul.find("li").index($(this).closest("li")) );
-        });
-
-        function renderTodo (todo) {
-            return "<li><input type='checkbox'> <a href='#/edit/'>" + todo + "</a></li>";
+    }, {
+        compare: function (a, b) {
+            return a.priority() === b.priority()
+                ? 0
+                : a.priority() > b.priority()
+                    ? 1
+                    : -1;
         }
-
-        return {
-            start: function () {
-                container.children().show();
-            },
-            stop: function () {
-                container.children().hide();
-            }
-        };
     });
+
+    // ### Custom UI Views
+
+    var NewTodoForm = app.defineView("NewTodoForm", {
+        el: "form",
+        initialize: function (self, opts) {
+            self.$(self.el)
+                .append([
+                    "<input type=\"text\" placeholder=\"Title...\" /><br/>",
+                    "<textarea placeholder=\"Details...\"></textarea><br/>",
+                    "<label>Priority:",
+                    "  <select>",
+                    "    <option value=\"1\">1</option>",
+                    "    <option value=\"2\">2</option>",
+                    "    <option value=\"3\">3</option>",
+                    "  </select>",
+                    "</label>",
+                    "<input type=\"submit\" value=\"Create\" />"
+                ].join(""));
+        },
+        events: {
+            "submit": "submit"
+        },
+        valueOf: function (self) {
+            return {
+                title: self.$("input[type=text]").val(),
+                content: self.$("textarea").val(),
+                priority: parseInt(self.$("select").val(), 10)
+            };
+        }
+    });
+
+    var TodoView = app.defineView("Todo", {
+        el: "li",
+        initialize: function (self, opts) {
+            self.$(self.el)
+                .append([
+                    "<input type=\"checkbox\" />",
+                    "<a href=\"#\">", opts.title, "</a>",
+                    "<form>",
+                    "  <textarea style=\"display:none;\">", opts.content, "</textarea>",
+                    "  <label>Priority:",
+                    "    <select>",
+                    "      <option value=\"1\">1</option>",
+                    "      <option value=\"2\">2</option>",
+                    "      <option value=\"3\">3</option>",
+                    "    </select>",
+                    "  </label>",
+                    "  <input type=\"submit\" value=\"Save\" />",
+                    "</form>"
+                ].join(""))
+                .find("option[value=" + opts.priority + "]")
+                .attr("selected", true);
+        },
+        events: {
+            "click input[type=checkbox]": "delete",
+            "click a": function (self, event, val) {
+                self.$("form").show();
+                self.trigger("show-detail", event, val);
+            },
+            "submit form": function (self, event, val) {
+                self.$("form").hide();
+                self.trigger("change", event, val);
+            }
+        },
+        valueOf: function (self) {
+            return {
+                priority: parseInt(self.$("select").val(), 10),
+                content: self.$("textarea").val()
+            };
+        }
+    });
+
+    var TodoListView = app.defineView("TodoListView", {
+        defaultElement: "ol",
+        initialize: function (self, opts) {
+            self.todos = [];
+            self.views = [];
+            this.$(self.el).append("<div><a href=\"#/new/\">New TODO</a></div>");
+        },
+        activate: function (self) {
+            app.views.BaseView.prototype.activate.call(self);
+            self.todos.sort(Todo.compare);
+            for (var i = 0; i < self.todos.length; i++) {
+                self.views.push((new TodoView({ parent: self.el,
+                                                title: self.todos[i].title(),
+                                                content: self.todos[i].content(),
+                                                priority: self.todos[i].content()
+                                              }))
+                                .activate()
+                                .bind("change", function (event, val) {
+                                    // TODO: save back to model...
+                                    self.refresh();
+                                }));
+            }
+            return this;
+        },
+        deactivate: function (self) {
+            app.views.BaseView.prototype.deactivate.call(this);
+            while (self.views.length > 0)
+                self.views.pop().deactivate().destroy();
+            return this;
+        },
+        events: {
+            "click a.new-todo": "new"
+        },
+        insert: function (self, todo) {
+            self.todos.push(todo);
+        },
+        refresh: function (self) {
+            return self.deactivate().activate();
+        }
+    });
+
 
     // ### Routes
 
-    // Routes represent higher level states of the application and communication
-    // between different parts of the app.
-
-    // This is the main route, which displays the list of TODOs.
+    var todoList = new TodoListView({
+        parent: document.body
+    });
+    todoList.bind("new", function () {
+        app.redirect("#/new/");
+    });
 
     app.defineRoute("^#/$", (function () {
 
-        var todoList = app.modules.todoList({
-            onNewTodo: function (f) {
-                app.subscribe("render new todo", f);
-            },
-            onChangeTodo: function (f) {
-                app.subscribe("change todo", f);
-            },
-            deleteTodo: function (todo) {
-                app.publish("delete todo", todo);
-            },
-            edit: function (i) {
-                app.redirect("#/edit/_/".replace("_", i));
-            }
-        }, $("<div>").appendTo(document.body));
-
         return {
             enter: function (path) {
-                todoList.start();
+                todoList.activate();
             },
             exit: function () {
-                todoList.stop();
+                todoList.deactivate();
             }
         };
 
     }()));
-
-    // Route for creating a new TODO.
 
     app.defineRoute("^#/new/$", (function () {
 
-        var form = app.modules.form({
-            fields: [
-                [app.modules.textInput, { name: "todo" }],
-                [app.modules.button, {
-                    name: "add",
-                    label: "Add new TODO"
-                }]
-            ],
-            onSubmit: function (data) {
-                app.publish("new todo", data.todo);
-                app.redirect("#/");
-            }
-        }, $("<div>").appendTo(document.body));
+        var form = new NewTodoForm({
+            parent: document.body
+        });
+        form.bind("submit", function (event, val) {
+            todoList.insert(new Todo(val));
+            app.redirect("#/");
+        });
 
         return {
-            enter: function () {
-                form.start();
+            enter: function (path) {
+                form.activate();
             },
             exit: function () {
-                form.stop();
+                form.deactivate();
             }
         };
 
     }()));
-
-    // This is a route to edit an existing TODO.
 
     app.defineRoute("^#/edit/(\\d+)/$", (function () {
 
-        var oldTodo,
-        form = app.modules.form({
-            fields: [
-                [app.modules.textInput, { name: "todo" }],
-                [app.modules.button, {
-                    name: "add",
-                    label: "Update TODO"
-                }]
-            ],
-            onSubmit: function (data) {
-                app.publish("change todo", oldTodo, data.todo);
-                app.redirect("#/");
-            }
-        }, $("<div>").appendTo(document.body));
-
         return {
             enter: function (path, index) {
-                oldTodo = index;
-                form.start({
-                    todo: todos.at(index)
-                });
             },
             exit: function () {
-                form.stop();
             }
         };
 
     }()));
 
-    // Once the app has loaded, go to the main view.
-
-    app.subscribe("ready", function () {
+    app.ready(function () {
         app.redirect("#/");
-    })
-
-    // Utility function.
-
-    function strip (text) {
-        return text.replace(/^\s+/, "").replace(/\s+$/, "");
-    }
+    });
 
 }());
