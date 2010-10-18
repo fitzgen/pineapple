@@ -32,7 +32,7 @@ var eventEmitter = {
         }
     },
     trigger: function (event) {
-        if ( ! this._eventHandlers[event] )
+        if ( ! (this._eventHandlers || (this._eventHandlers = {}))[event] )
             return this;
         var args = slice(arguments, 1),
             self = this;
