@@ -37,6 +37,18 @@ the("app.views", function () {
         equal(view.el instanceof HTMLElement, true);
     });
 
+    should("attach to parent on activation", function () {
+        var parent = $("<div>");
+        var view = new app.views.BaseView({
+            el: "div",
+            parent: parent
+        });
+        equal(parent.children().length, 0);
+
+        view.activate();
+        equal(parent.children().length, 1);
+    });
+
     should("bind events directly by name", 1, function () {
         var View = app.defineView({
             events: {
