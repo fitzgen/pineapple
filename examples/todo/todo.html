@@ -1,0 +1,29 @@
+<html>
+  <head>
+    <title>TODO</title>
+    <style>
+    </style>
+  </head>
+  <body>
+
+    <div id="main">
+      <a href="/add/">Add TODO</a>
+
+      <ul>
+      </ul>
+
+      <form method="POST" action="/clear/">
+        <input type="hidden" value="foo" name="bar" />
+        <input type="submit" name="clear" value="Clear Completed" />
+      </form>
+    </div>
+
+    <div id="add">
+      <form method="POST" action="/add/">
+        <label>Task <input type="text" name="task" /></label>
+        <input type="submit" value="Create" />
+      </form>
+    </div>
+
+  </body>
+</html>
